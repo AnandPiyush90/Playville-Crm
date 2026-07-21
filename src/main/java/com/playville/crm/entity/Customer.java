@@ -32,6 +32,19 @@ public class Customer {
     @Column(length = 150)
     private String email;
 
+    @Column(name = "emergency_contact_name", length = 150)
+    private String emergencyContactName;
+
+    @Column(name = "emergency_contact_phone", length = 15)
+    private String emergencyContactPhone;
+
+    @Column(name = "marketing_consent")
+    @Builder.Default
+    private boolean marketingConsent = false;
+
+    @Column(name = "disclaimer_version", length = 30)
+    private String disclaimerVersion;
+
     @Convert(converter = LeadSourceConverter.class)
     @Column(name = "lead_source", length = 20)
     @Builder.Default

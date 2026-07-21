@@ -1,0 +1,45 @@
+package com.playville.crm.dto.invoice;
+
+import com.playville.crm.entity.enums.InvoiceStatus;
+import lombok.Builder; import lombok.Getter;
+import java.math.BigDecimal; import java.time.LocalDateTime; import java.util.List;
+@Getter @Builder public class InvoiceResponse {
+    private Integer id;
+    private String invoiceNumber;
+    private Integer branchId;
+    private String branchCode;
+    private Integer customerId;
+    private Integer checkinId;
+    private Integer birthdayBookingId;
+    private InvoiceStatus status;
+    private String invoiceType;
+    private LocalDateTime invoiceDate;
+    private Integer purchaseId;
+    private String issuedByStaffName;
+    private String sellerLegalName;
+    private String sellerAddress;
+    private String sellerPhone;
+    private String sellerEmail;
+    private String sellerGstin;
+    private String sellerPan;
+    private String sellerTaxState;
+    private String sellerTaxStateCode;
+    private String terms;
+    private String footer;
+    private Long version;
+    private String customerName;
+    private String customerPhone;
+    private String customerEmail;
+    private BigDecimal subtotal;
+    private BigDecimal discountTotal;
+    private BigDecimal taxTotal;
+    private BigDecimal roundingAdjustment;
+    private BigDecimal grandTotal;
+    private BigDecimal amountPaid;
+    private BigDecimal balanceDue;
+    private String notes;
+    private String voidReason;
+    private List<InvoiceLineResponse> items;
+    private List<PaymentResponse> payments;
+    private LocalDateTime createdAt;
+}

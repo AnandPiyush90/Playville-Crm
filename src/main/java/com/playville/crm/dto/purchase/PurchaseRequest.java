@@ -26,4 +26,7 @@ public class PurchaseRequest {
     private BigDecimal discountApplied;
 
     private String notes;
+    private Integer sourceCheckinId;
+    private Integer sourceTrialEntitlementId;
+    private com.playville.crm.entity.enums.PurchaseContext purchaseContext;
 }

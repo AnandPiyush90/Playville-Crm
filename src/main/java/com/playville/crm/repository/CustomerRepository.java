@@ -4,15 +4,21 @@ import com.playville.crm.entity.Customer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     Optional<Customer> findByPhoneNumber(String phoneNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Customer c where c.id = :id")
+    Optional<Customer> findByIdForUpdate(@Param("id") Integer id);
 
     Page<Customer> findByHomeBranchIdAndIsActiveTrue(Integer branchId, Pageable pageable);
 

@@ -1,0 +1,4 @@
+package com.playville.crm.dto.inventory;
+import lombok.Builder; import lombok.Getter;
+import java.math.BigDecimal; import java.util.List; import java.time.LocalDateTime;
+@Getter @Builder public class StockTransferResponse { private Integer id; private String transferNumber; private Integer sourceBranchId; private Integer destinationBranchId; private String status; private String notes; private LocalDateTime createdAt; private LocalDateTime dispatchedAt; private LocalDateTime receivedAt; private List<Line> items; @Getter @Builder public static class Line { private Integer id; private Integer skuId; private String skuCode; private Integer batchId; private BigDecimal requestedQuantity; private BigDecimal dispatchedQuantity; private BigDecimal receivedQuantity; private String varianceReason; } }

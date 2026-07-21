@@ -27,6 +27,9 @@ public class Branch {
     @Column(name = "branch_name", nullable = false, length = 100)
     private String branchName;
 
+    @Column(name = "invoice_legal_name", length = 150)
+    private String invoiceLegalName;
+
     @Column(columnDefinition = "TEXT")
     private String address;
 
@@ -35,6 +38,13 @@ public class Branch {
 
     @Column(length = 15)
     private String phone;
+
+    @Column(name = "alternate_phone", length = 15)
+    private String alternatePhone;
+
+    @Column(nullable = false, length = 50)
+    @Builder.Default
+    private String timezone = "Asia/Kolkata";
 
     @Column(name = "open_time")
     private LocalTime openTime;
@@ -50,6 +60,35 @@ public class Branch {
 
     @Column(name = "notification_email", length = 150)
     private String notificationEmail;
+
+    @Column(name = "email_sharing_enabled") private boolean emailSharingEnabled;
+    @Column(name = "invoice_from_email", length = 150) private String invoiceFromEmail;
+    @Column(name = "invoice_reply_to_email", length = 150) private String invoiceReplyToEmail;
+    @Column(name = "whatsapp_sharing_enabled") private boolean whatsappSharingEnabled;
+    @Column(name = "whatsapp_phone_number_id", length = 50) private String whatsappPhoneNumberId;
+    @Column(name = "whatsapp_invoice_template_name", length = 100) private String whatsappInvoiceTemplateName;
+    @Column(name = "whatsapp_language_code", nullable = false, length = 10) @Builder.Default private String whatsappLanguageCode = "en";
+
+    @Column(length = 15)
+    private String gstin;
+
+    @Column(name = "pan_number", length = 10)
+    private String panNumber;
+
+    @Column(name = "tax_state", length = 60)
+    private String taxState;
+
+    @Column(name = "tax_state_code", length = 2)
+    private String taxStateCode;
+
+    @Column(name = "invoice_prefix", length = 20)
+    private String invoicePrefix;
+
+    @Column(name = "invoice_terms", columnDefinition = "TEXT")
+    private String invoiceTerms;
+
+    @Column(name = "invoice_footer", length = 500)
+    private String invoiceFooter;
 
     @Column(name = "is_active")
     @Builder.Default

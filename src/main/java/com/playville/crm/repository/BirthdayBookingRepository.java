@@ -19,4 +19,7 @@ public interface BirthdayBookingRepository
     // Slot conflict check
     Optional<BirthdayBooking> findByBranchIdAndPartyDateAndPartySlotStart(
             Integer branchId, LocalDate date, LocalTime slotStart);
+    List<BirthdayBooking> findByBranchIdAndPartyDateAndPartySlotStartLessThanAndPartySlotEndGreaterThanAndStatusNot(
+            Integer branchId, LocalDate date, LocalTime slotEnd, LocalTime slotStart,
+            BirthdayBooking.BookingStatus status);
 }

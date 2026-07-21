@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.playville.crm.entity.enums.PurchaseContext;
 
 @Entity
 @Table(name = "pv_purchases")
@@ -74,6 +75,18 @@ public class Purchase {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "source_checkin_id")
+    private Checkin sourceCheckin;
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "source_trial_entitlement_id")
+    private CustomerEntitlement sourceTrialEntitlement;
+
+    @Enumerated(EnumType.STRING) @Column(name = "purchase_context", length = 30)
+    @Builder.Default private PurchaseContext purchaseContext = PurchaseContext.STANDARD;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

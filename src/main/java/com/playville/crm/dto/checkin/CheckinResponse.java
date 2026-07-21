@@ -20,4 +20,10 @@ public class CheckinResponse {
     private Integer         kidsCount;
     private List<KidDto>    kids;
     private Integer         sessionBalance;
+    private String          visitType;
+    private Integer         entitlementId;
+    private List<EntitlementAllocationResponse> entitlementAllocations;
+    private String          conversionStatus;
+    private List<SessionItemResponse> sessionItems;
+    private java.math.BigDecimal sessionItemsTotal;
 }

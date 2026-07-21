@@ -8,6 +8,9 @@ import com.playville.crm.entity.enums.StaffRole;
 import com.playville.crm.exception.*;
 import com.playville.crm.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,9 @@ public class StaffService {
 
     @Transactional
     public StaffDto createStaff(CreateStaffRequest req) {
+        StaffRole requestedRole = req.getRole() != null ? req.getRole() : StaffRole.staff;
+        validateRoleAssignment(requestedRole);
+
         if (staffRepository.existsByUsername(req.getUsername()))
             throw new DuplicateResourceException(
                     "Username already taken: " + req.getUsername());
@@ -49,7 +55,7 @@ public class StaffService {
                 .phone(req.getPhone())
                 .username(req.getUsername())
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
-                .role(req.getRole() != null ? req.getRole() : StaffRole.staff)
+                .role(requestedRole)
                 .build();
 
         return toDto(staffRepository.save(staff));
@@ -63,6 +69,19 @@ public class StaffService {
             throw new BranchAccessDeniedException();
         staff.setActive(false);
         staffRepository.save(staff);
+    }
+
+    private void validateRoleAssignment(StaffRole requestedRole) {
+        if (requestedRole == StaffRole.staff || currentUserIsAdmin()) {
+            return;
+        }
+        throw new AccessDeniedException("Only admins can create manager or admin users");
+    }
+
+    private boolean currentUserIsAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_admin".equals(authority.getAuthority()));
     }
 
     private StaffDto toDto(Staff s) {

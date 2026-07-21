@@ -50,6 +50,10 @@ public class BirthdayBooking {
     @Column(name = "expected_guests")
     @Builder.Default
     private Integer expectedGuests = 10;
+    @Column(name = "actual_kids") private Integer actualKids;
+    @Column(name = "actual_adults") private Integer actualAdults;
+    @Column(name = "actual_extra_minutes") @Builder.Default private Integer actualExtraMinutes = 0;
+    @Column(name = "completion_notes", columnDefinition = "TEXT") private String completionNotes;
 
     @Column(name = "cake_option", length = 100)
     private String cakeOption;

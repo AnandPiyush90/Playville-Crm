@@ -8,21 +8,21 @@ import lombok.Setter;
 @Getter @Setter
 public class CreateStaffRequest {
 
-    @NotBlank
-    @Size(max = 100)
+    @NotBlank(message = "Full name is required")
+    @Size(max = 100, message = "Full name must be 100 characters or less")
     private String fullName;
 
-    @Email
+    @Email(message = "Enter a valid email address")
     private String email;
 
-    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Valid 10-digit mobile required")
+    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Enter a valid 10-digit Indian mobile number")
     private String phone;
 
-    @NotBlank
+    @NotBlank(message = "Username is required")
     @Size(min = 4, max = 60, message = "Username must be 4-60 characters")
     private String username;
 
-    @NotBlank
+    @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 

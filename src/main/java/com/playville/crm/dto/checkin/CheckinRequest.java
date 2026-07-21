@@ -15,4 +15,8 @@ public class CheckinRequest {
 
     @NotEmpty(message = "At least one kid must be selected for check-in")
     private List<Integer> kidIds;
+
+    private String visitType;
+    private Integer entitlementId;
+    private String notes;
 }

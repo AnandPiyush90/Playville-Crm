@@ -8,12 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PurchaseRepository extends JpaRepository<Purchase, Integer> {
 
     Page<Purchase>  findByBranchIdOrderByCreatedAtDesc(Integer branchId, Pageable pageable);
 
     List<Purchase>  findByCustomerIdOrderByCreatedAtDesc(Integer customerId);
+    Optional<Purchase> findBySourceCheckinId(Integer checkinId);
+    Optional<Purchase> findByIdempotencyKey(String idempotencyKey);
 
     // Count customers whose current_package_id matches this package
     @Query("""

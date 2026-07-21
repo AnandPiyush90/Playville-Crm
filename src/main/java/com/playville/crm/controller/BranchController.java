@@ -6,6 +6,7 @@ import com.playville.crm.service.BranchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -37,7 +38,7 @@ public class BranchController {
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<ApiResponse<BranchDto>> update(
             @PathVariable Integer id,
-            @RequestBody UpdateBranchRequest req) {
+            @Valid @RequestBody UpdateBranchRequest req) {
         return ResponseEntity.ok(ApiResponse.success(branchService.updateBranch(id, req)));
     }
 }

@@ -1,6 +1,7 @@
 package com.playville.crm.dto.birthday;
 
 import com.playville.crm.entity.Purchase;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -38,4 +39,6 @@ public class BirthdayBookingRequest {
     private Purchase.PaymentMode paymentMode;
     private String               paymentReference;
     private String               notes;
+
+    @Valid private BirthdayQuotePreviewRequest quote;
 }

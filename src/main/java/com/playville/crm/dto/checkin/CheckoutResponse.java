@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter @Builder
 public class CheckoutResponse {
@@ -23,4 +24,9 @@ public class CheckoutResponse {
     private BigDecimal    totalCharged;
     private boolean       crossBranchSettlement;
     private String        checkoutNotes;
+    private String        conversionOutcome;
+    private String        conversionReason;
+    private Integer       purchaseId;
+    private List<SessionItemResponse> sessionItems;
+    private BigDecimal itemsTotal;
 }

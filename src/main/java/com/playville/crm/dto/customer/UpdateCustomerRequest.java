@@ -10,10 +10,10 @@ import lombok.Setter;
 @Setter
 public class UpdateCustomerRequest {
 
-    @Size(max = 150)
+    @Size(max = 150, message = "Parent name must be 150 characters or less")
     private String     parentName;
 
-    @Email
+    @Email(message = "Enter a valid email address")
     private String     email;
 
     private LeadSource leadSource;

@@ -23,6 +23,10 @@ public class BirthdayBookingResponse {
     private LocalTime                  partySlotStart;
     private LocalTime                  partySlotEnd;
     private Integer                    expectedGuests;
+    private Integer                    actualKids;
+    private Integer                    actualAdults;
+    private Integer                    actualExtraMinutes;
+    private String                     completionNotes;
     private String                     cakeOption;
     private Integer                    foodBoxesCount;
     private BigDecimal                 baseAmount;
@@ -37,4 +41,5 @@ public class BirthdayBookingResponse {
     private BirthdayBooking.BookingStatus status;
     private String                     notes;
     private LocalDateTime              createdAt;
+    private String inventoryReservationStatus;
 }

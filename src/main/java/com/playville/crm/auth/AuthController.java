@@ -1,16 +1,20 @@
 package com.playville.crm.auth;
 
 import com.playville.crm.common.ApiResponse;
+import com.playville.crm.exception.ResourceNotFoundException;
 import com.playville.crm.security.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
 
 @Tag(name = "Authentication", description = "Staff login and token management")
 @RestController
@@ -21,6 +25,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider      jwtTokenProvider;
     private final PasswordEncoder       passwordEncoder;
+    private final Environment           environment;
 
     @Operation(summary = "Staff login", description = "Returns JWT for branch-scoped access")
     @PostMapping("/login")
@@ -66,6 +71,11 @@ public class AuthController {
     @Operation(summary = "Generate BCrypt hash — REMOVE BEFORE PRODUCTION")
     @GetMapping("/hash")
     public ResponseEntity<String> hash(@RequestParam String password) {
+        boolean localProfile = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> profile.equals("dev") || profile.equals("local"));
+        if (!localProfile) {
+            throw new ResourceNotFoundException("Endpoint not found");
+        }
         return ResponseEntity.ok(passwordEncoder.encode(password));
     }
     // ─────────────────────────────────────────────────────────────

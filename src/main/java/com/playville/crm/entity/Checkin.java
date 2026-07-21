@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.playville.crm.entity.enums.*;
 
 @Entity
 @Table(name = "pv_checkins")
@@ -29,6 +30,14 @@ public class Checkin {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entitlement_id")
+    private CustomerEntitlement entitlement;
+
+    @Column(name = "visit_type", length = 40)
+    @Builder.Default
+    private String visitType = "PAID";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id")
@@ -68,6 +77,17 @@ public class Checkin {
     @Column(name = "checkout_notes", columnDefinition = "TEXT")
     private String checkoutNotes;
 
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
+    @Enumerated(EnumType.STRING) @Column(name = "conversion_outcome", length = 30)
+    private ConversionOutcome conversionOutcome;
+    @Enumerated(EnumType.STRING) @Column(name = "conversion_reason", length = 30)
+    private ConversionReason conversionReason;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "conversion_purchase_id")
+    private Purchase conversionPurchase;
+    @Column(name = "follow_up_at") private LocalDateTime followUpAt;
+
     @Column(name = "auto_closed")
     @Builder.Default
     private boolean autoClosed = false;
@@ -91,5 +111,5 @@ public class Checkin {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum CheckinStatus { Active, Completed, Auto_Closed }
+    public enum CheckinStatus { Active, Completed, Auto_Closed, Cancelled }
 }

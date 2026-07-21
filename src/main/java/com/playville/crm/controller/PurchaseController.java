@@ -26,11 +26,12 @@ public class PurchaseController {
     @PostMapping
     public ResponseEntity<ApiResponse<PurchaseResponse>> purchase(
             @Valid @RequestBody PurchaseRequest req,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal String username) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Package purchased successfully",
-                        purchaseService.purchasePackage(req, username)));
+                        purchaseService.purchasePackage(req, username, idempotencyKey)));
     }
 
     @Operation(summary = "List purchases for current branch (paginated)")
