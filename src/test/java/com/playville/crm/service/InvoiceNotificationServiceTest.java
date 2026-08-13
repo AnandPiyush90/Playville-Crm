@@ -11,8 +11,6 @@ import com.playville.crm.exception.BusinessRuleException;
 import com.playville.crm.repository.InvoiceRepository;
 import com.playville.crm.repository.NotificationDeliveryRepository;
 import com.playville.crm.repository.StaffRepository;
-import jakarta.mail.Session;
-import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,10 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.Optional;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,7 +31,8 @@ class InvoiceNotificationServiceTest {
     @Mock private StaffRepository staffRepository;
     @Mock private NotificationDeliveryRepository deliveryRepository;
     @Mock private InvoiceService invoiceService;
-    @Mock private JavaMailSender mailSender;
+    @Mock private NotificationDeliveryService notificationDeliveryService;
+    @Mock private EmailTemplateService emailTemplateService;
     @InjectMocks private InvoiceNotificationService service;
 
     private Branch branch;
@@ -50,6 +47,7 @@ class InvoiceNotificationServiceTest {
                 .invoiceNumber("PV7/41").customerNameSnapshot("Asha")
                 .customerEmailSnapshot("asha@example.com").customerPhoneSnapshot("9876543210").build();
         when(invoiceRepository.findDetailById(41)).thenReturn(Optional.of(invoice));
+        lenient().when(emailTemplateService.render(eq(7),eq(EmailTemplateService.INVOICE),any())).thenReturn(new com.playville.crm.dto.notification.RenderedEmailTemplate("Invoice subject","Invoice body"));
     }
 
     @AfterEach
@@ -61,21 +59,15 @@ class InvoiceNotificationServiceTest {
     void sendsEmailPdfAndMarksAuditSent() {
         ShareInvoiceRequest request = request(ShareInvoiceRequest.Channel.EMAIL, null);
         when(deliveryRepository.findByBranchIdAndIdempotencyKey(7, "send-1")).thenReturn(Optional.empty());
-        when(deliveryRepository.saveAndFlush(any())).thenAnswer(invocation -> {
-            NotificationDelivery delivery = invocation.getArgument(0);
-            delivery.setId(99);
-            return delivery;
-        });
         when(invoiceService.document(41)).thenReturn("%PDF-test".getBytes());
-        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
-        when(mailSender.createMimeMessage()).thenReturn(message);
+        NotificationDelivery queued=NotificationDelivery.builder().id(99).channel("EMAIL").destination("asha@example.com").status("PENDING").build();
+        when(notificationDeliveryService.enqueueEmail(any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any())).thenReturn(queued);
 
         var response = service.share(41, request, "staff.user", "send-1");
 
-        assertEquals("SENT", response.getStatus());
+        assertEquals("PENDING", response.getStatus());
         assertEquals("asha@example.com", response.getDestination());
-        verify(mailSender).send(message);
-        verify(deliveryRepository).save(argThat(delivery -> "SENT".equals(delivery.getStatus()) && delivery.getSentAt() != null));
+        verify(notificationDeliveryService).enqueueEmail(any(),any(),any(),eq("INVOICE"),eq("INVOICE"),eq("41"),eq("asha@example.com"),eq("send-1"),any(),any(),any(),any());
     }
 
     @Test
@@ -87,23 +79,21 @@ class InvoiceNotificationServiceTest {
         var response = service.share(41, request(ShareInvoiceRequest.Channel.EMAIL, null), "staff.user", "same-key");
 
         assertEquals(55, response.getDeliveryId());
-        verifyNoInteractions(mailSender, invoiceService);
+        verifyNoInteractions(invoiceService, notificationDeliveryService);
         verify(deliveryRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    void disabledChannelKeepsActionableErrorAndFailedAudit() {
-        branch.setEmailSharingEnabled(false);
+    void emailDeliveryIsQueuedForDurableDispatch() {
         when(deliveryRepository.findByBranchIdAndIdempotencyKey(7, "disabled-1")).thenReturn(Optional.empty());
-        when(deliveryRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(invoiceService.document(41)).thenReturn(new byte[] {1});
+        NotificationDelivery queued=NotificationDelivery.builder().id(98).channel("EMAIL").destination("asha@example.com").status("PENDING").build();
+        when(notificationDeliveryService.enqueueEmail(any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any())).thenReturn(queued);
 
-        BusinessRuleException error = assertThrows(BusinessRuleException.class,
-                () -> service.share(41, request(ShareInvoiceRequest.Channel.EMAIL, null), "staff.user", "disabled-1"));
+        var response=service.share(41, request(ShareInvoiceRequest.Channel.EMAIL, null), "staff.user", "disabled-1");
 
-        assertTrue(error.getMessage().contains("EMAIL_SHARING_DISABLED"));
-        verify(deliveryRepository).save(argThat(delivery -> "FAILED".equals(delivery.getStatus())
-                && delivery.getErrorMessage().contains("EMAIL_SHARING_DISABLED")));
+        assertEquals("PENDING",response.getStatus());
+        verify(notificationDeliveryService).enqueueEmail(any(),any(),any(),eq("INVOICE"),eq("INVOICE"),eq("41"),eq("asha@example.com"),eq("disabled-1"),any(),any(),any(),any());
     }
 
     @Test

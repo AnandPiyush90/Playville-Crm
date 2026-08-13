@@ -64,6 +64,11 @@ public class BranchService {
         if (req.getTaxStateCode()      != null) branch.setTaxStateCode(blankToNull(req.getTaxStateCode()));
         if (req.getInvoiceTerms()      != null) branch.setInvoiceTerms(blankToNull(req.getInvoiceTerms()));
         if (req.getInvoiceFooter()     != null) branch.setInvoiceFooter(blankToNull(req.getInvoiceFooter()));
+        if (req.getDisclaimerRequiredForPhysicalVisit() != null) {
+            branch.setDisclaimerRequiredForPhysicalVisit(req.getDisclaimerRequiredForPhysicalVisit());
+            if (branch.isDisclaimerRequiredForPhysicalVisit() && branch.getActiveDisclaimerTemplate() == null)
+                throw new com.playville.crm.exception.BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Publish and assign an active disclaimer template before requiring signatures");
+        }
         return toDto(branchRepository.save(branch));
     }
 
@@ -98,6 +103,12 @@ public class BranchService {
                 .invoicePrefix(b.getInvoicePrefix())
                 .invoiceTerms(b.getInvoiceTerms())
                 .invoiceFooter(b.getInvoiceFooter())
+                .disclaimerRequiredForPhysicalVisit(b.isDisclaimerRequiredForPhysicalVisit())
+                .tabletSignatureEnabled(b.isTabletSignatureEnabled())
+                .emailConfirmationEnabled(b.isEmailConfirmationEnabled())
+                .disclaimerEmailLinkTtlHours(b.getDisclaimerEmailLinkTtlHours())
+                .disclaimerResignOnNewVersion(b.isDisclaimerResignOnNewVersion())
+                .activeDisclaimerTemplateId(b.getActiveDisclaimerTemplate()==null?null:b.getActiveDisclaimerTemplate().getId())
                 .isActive(b.isActive())
                 .build();
     }

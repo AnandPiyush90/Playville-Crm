@@ -68,6 +68,12 @@ public class Branch {
     @Column(name = "whatsapp_phone_number_id", length = 50) private String whatsappPhoneNumberId;
     @Column(name = "whatsapp_invoice_template_name", length = 100) private String whatsappInvoiceTemplateName;
     @Column(name = "whatsapp_language_code", nullable = false, length = 10) @Builder.Default private String whatsappLanguageCode = "en";
+    @Column(name = "disclaimer_required_for_physical_visit") @Builder.Default private boolean disclaimerRequiredForPhysicalVisit = true;
+    @Column(name = "tablet_signature_enabled") @Builder.Default private boolean tabletSignatureEnabled = true;
+    @Column(name = "email_confirmation_enabled") @Builder.Default private boolean emailConfirmationEnabled = false;
+    @Column(name = "disclaimer_email_link_ttl_hours") @Builder.Default private int disclaimerEmailLinkTtlHours = 24;
+    @Column(name = "disclaimer_resign_on_new_version") @Builder.Default private boolean disclaimerResignOnNewVersion = true;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "active_disclaimer_template_id") private DisclaimerTemplate activeDisclaimerTemplate;
 
     @Column(length = 15)
     private String gstin;

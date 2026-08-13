@@ -43,6 +43,7 @@ public class CheckinService {
     private final InventoryBalanceRepository       inventoryBalanceRepository;
     private final InventoryBatchRepository         inventoryBatchRepository;
     private final InventoryMovementRepository      inventoryMovementRepository;
+    private final DisclaimerService                 disclaimerService;
 
     // ─── Check-in ────────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ public class CheckinService {
         Integer branchId = BranchContext.getBranchId();
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", branchId));
+        if (!disclaimerService.current(customer, branch))
+            throw new BusinessRuleException("DISCLAIMER_REQUIRED: This branch requires a current signed disclaimer before check-in");
 
         // Resolve staff from username — null-safe, staff column is nullable
         Staff staff = staffRepository.findByUsernameAndIsActiveTrue(username)

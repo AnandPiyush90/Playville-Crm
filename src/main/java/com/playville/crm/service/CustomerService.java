@@ -70,7 +70,7 @@ public class CustomerService {
                 .leadSource(req.getLeadSource())
                 .homeBranch(branch)
                 .firstVisitBranch(branch)
-                .disclaimerAccepted(Boolean.TRUE.equals(req.getDisclaimerAccepted()))
+                .disclaimerAccepted(false)
                 .build();
 
         return toDto(customerRepository.save(customer));
@@ -84,10 +84,6 @@ public class CustomerService {
         if (req.getEmail()       != null) c.setEmail(req.getEmail());
         if (req.getLeadSource()  != null) c.setLeadSource(req.getLeadSource());
         if (req.getNotes()       != null) c.setNotes(req.getNotes());
-        if (Boolean.TRUE.equals(req.getDisclaimerAccepted())) {
-            c.setDisclaimerAccepted(true);
-            c.setAcceptanceTimestamp(LocalDateTime.now());
-        }
         return toDto(customerRepository.save(c));
     }
 

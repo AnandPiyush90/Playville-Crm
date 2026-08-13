@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.*;
 import org.springframework.web.client.RestClient;
@@ -24,7 +23,8 @@ public class InvoiceNotificationService {
     private final StaffRepository staffRepository;
     private final NotificationDeliveryRepository deliveryRepository;
     private final InvoiceService invoiceService;
-    private final JavaMailSender mailSender;
+    private final NotificationDeliveryService notificationDeliveryService;
+    private final EmailTemplateService emailTemplateService;
 
     @Value("${app.notifications.whatsapp.access-token:}") private String whatsappAccessToken;
     @Value("${app.notifications.whatsapp.graph-url:https://graph.facebook.com}") private String whatsappGraphUrl;
@@ -42,14 +42,19 @@ public class InvoiceNotificationService {
         Staff staff = staffRepository.findByUsernameAndIsActiveTrue(username).orElse(null);
         ShareInvoiceRequest.Channel channel = request.getChannel() == null ? ShareInvoiceRequest.Channel.EMAIL : request.getChannel();
         String destination = normalizeDestination(channel, request.getDestination(), invoice);
+        if(channel==ShareInvoiceRequest.Channel.EMAIL){
+            byte[] pdf=invoiceService.document(invoiceId); String number=firstNonBlank(invoice.getInvoiceNumber(),"Invoice "+invoice.getId());
+            var template=emailTemplateService.render(branch.getId(),EmailTemplateService.INVOICE,Map.of("CUSTOMER_NAME",firstNonBlank(invoice.getCustomerNameSnapshot(),"Customer"),"INVOICE_NUMBER",number,"BRANCH_NAME",firstNonBlank(branch.getBranchName(),"PlayVille")));
+            NotificationDelivery delivery=notificationDeliveryService.enqueueEmail(branch,invoice.getCustomer(),staff,"INVOICE","INVOICE",String.valueOf(invoice.getId()),destination,idempotencyKey,template.subject(),
+                    template.bodyText(),pdf,"playville-invoice-"+invoice.getId()+".pdf");
+            return response(delivery);
+        }
         NotificationDelivery delivery = deliveryRepository.saveAndFlush(NotificationDelivery.builder().branch(branch).invoice(invoice)
                 .customer(invoice.getCustomer()).triggeredByStaff(staff).channel(channel.name()).destination(destination)
                 .status("PENDING").idempotencyKey(idempotencyKey).build());
         try {
             byte[] pdf = invoiceService.document(invoiceId);
-            String providerReference = channel == ShareInvoiceRequest.Channel.EMAIL
-                    ? sendEmail(branch, invoice, destination, pdf)
-                    : sendWhatsapp(branch, invoice, destination, pdf);
+            String providerReference = sendWhatsapp(branch, invoice, destination, pdf);
             delivery.setStatus("SENT"); delivery.setProviderReference(providerReference); delivery.setSentAt(LocalDateTime.now());
         } catch (BusinessRuleException exception) {
             delivery.setStatus("FAILED"); delivery.setErrorMessage(limit(exception.getMessage(), 4000)); deliveryRepository.save(delivery);
@@ -60,20 +65,6 @@ public class InvoiceNotificationService {
         }
         deliveryRepository.save(delivery);
         return response(delivery);
-    }
-
-    private String sendEmail(Branch branch, Invoice invoice, String destination, byte[] pdf) throws Exception {
-        if (!branch.isEmailSharingEnabled()) throw new BusinessRuleException("EMAIL_SHARING_DISABLED: Enable email sharing in Branch Settings");
-        String from = firstNonBlank(branch.getInvoiceFromEmail(), branch.getNotificationEmail());
-        if (from == null) throw new BusinessRuleException("EMAIL_FROM_REQUIRED: Configure an invoice sender email in Branch Settings");
-        MimeMessage message = mailSender.createMimeMessage(); MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom(from, firstNonBlank(branch.getInvoiceLegalName(), branch.getBranchName(), "PlayVille")); helper.setTo(destination);
-        if (branch.getInvoiceReplyToEmail() != null) helper.setReplyTo(branch.getInvoiceReplyToEmail());
-        String number = firstNonBlank(invoice.getInvoiceNumber(), "Invoice " + invoice.getId());
-        helper.setSubject("PlayVille invoice " + number);
-        helper.setText("Hello " + firstNonBlank(invoice.getCustomerNameSnapshot(), "Customer") + ",\n\nPlease find your PlayVille invoice attached.\n\nThank you,\n" + branch.getBranchName());
-        helper.addAttachment("playville-invoice-" + invoice.getId() + ".pdf", new ByteArrayResource(pdf)); mailSender.send(message);
-        return message.getMessageID();
     }
 
     @SuppressWarnings("unchecked")

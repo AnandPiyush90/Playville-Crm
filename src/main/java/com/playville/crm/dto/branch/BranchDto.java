@@ -37,5 +37,11 @@ public class BranchDto {
     private String     invoicePrefix;
     private String     invoiceTerms;
     private String     invoiceFooter;
+    private boolean    disclaimerRequiredForPhysicalVisit;
+    private boolean    tabletSignatureEnabled;
+    private boolean    emailConfirmationEnabled;
+    private int        disclaimerEmailLinkTtlHours;
+    private boolean    disclaimerResignOnNewVersion;
+    private Long       activeDisclaimerTemplateId;
     private boolean    isActive;
 }

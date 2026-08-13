@@ -77,6 +77,10 @@ public class Customer {
     @Column(name = "acceptance_timestamp")
     private LocalDateTime acceptanceTimestamp;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_disclaimer_acceptance_id")
+    private DisclaimerAcceptance currentDisclaimerAcceptance;
+
     @Column(name = "portal_pin", length = 4)
     private String portalPin;
 

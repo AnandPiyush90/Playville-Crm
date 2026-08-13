@@ -33,6 +33,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_URLS = {
             "/auth/login",
+            "/public/disclaimer/**",
             "/auth/hash",           // ← temporary hash generator
             "/api-docs/**",
             "/v3/api-docs/**",
@@ -50,6 +51,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(PUBLIC_URLS).permitAll()
+                    // Branch disclaimer policy is readable by all authenticated staff
+                    .requestMatchers(HttpMethod.GET, "/branches/current/disclaimer-settings").authenticated()
                     // Admin-only endpoints
                     .requestMatchers("/branches/**").hasRole("admin")
                     .requestMatchers(HttpMethod.DELETE, "/**").hasRole("admin")

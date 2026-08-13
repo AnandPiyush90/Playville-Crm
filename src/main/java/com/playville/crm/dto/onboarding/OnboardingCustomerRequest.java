@@ -13,4 +13,5 @@ public class OnboardingCustomerRequest {
  private Boolean marketingConsent;
  private Boolean disclaimerAccepted;
  private String disclaimerVersion;
+ private Long disclaimerAcceptanceId;
 }

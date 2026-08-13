@@ -21,6 +21,7 @@ import java.util.*;
 public class CustomerOnboardingService {
     private final CustomerRepository customers; private final KidRepository kids; private final BranchRepository branches;
     private final OnboardingIdempotencyRepository idempotency; private final CustomerEntitlementRepository entitlements;
+    private final DisclaimerAcceptanceRepository disclaimerAcceptances;
     private final TrialEntitlementService trials; private final FeatureFlagService featureFlags;
 
     @Transactional
@@ -32,15 +33,18 @@ public class CustomerOnboardingService {
         OnboardingIdempotency claim = claimKey(key);
         String phone = normalizePhone(request.getCustomer().getPhoneNumber());
         customers.findByPhoneNumber(phone).ifPresent(existing -> { throw new CustomerPhoneExistsException(existing.getId()); });
-        if (isPhysicalVisit(request.getVisitPurpose()) && !Boolean.TRUE.equals(request.getCustomer().getDisclaimerAccepted()))
-            throw new BusinessRuleException("WAIVER_REQUIRED: A waiver is required for a physical visit");
         Branch branch = branches.findById(BranchContext.getBranchId()).orElseThrow(() -> new ResourceNotFoundException("Branch", BranchContext.getBranchId()));
+        DisclaimerAcceptance signedAcceptance = requiredAcceptance(request, branch, phone);
         Customer customer = customers.save(Customer.builder().parentName(request.getCustomer().getParentName()).phoneNumber(phone)
                 .email(request.getCustomer().getEmail()).leadSource(request.getCustomer().getLeadSource() == null ? LeadSource.Walk_in : request.getCustomer().getLeadSource())
                 .emergencyContactName(request.getCustomer().getEmergencyContactName()).emergencyContactPhone(request.getCustomer().getEmergencyContactPhone())
-                .marketingConsent(Boolean.TRUE.equals(request.getCustomer().getMarketingConsent())).disclaimerAccepted(Boolean.TRUE.equals(request.getCustomer().getDisclaimerAccepted()))
-                .disclaimerVersion(request.getCustomer().getDisclaimerVersion()).acceptanceTimestamp(Boolean.TRUE.equals(request.getCustomer().getDisclaimerAccepted()) ? LocalDateTime.now() : null)
+                .marketingConsent(Boolean.TRUE.equals(request.getCustomer().getMarketingConsent())).disclaimerAccepted(signedAcceptance != null)
+                .disclaimerVersion(signedAcceptance == null ? null : signedAcceptance.getTemplateVersionSnapshot()).acceptanceTimestamp(signedAcceptance == null ? null : signedAcceptance.getAcceptedAt())
                 .homeBranch(branch).firstVisitBranch(branch).build());
+        if(signedAcceptance!=null){
+            signedAcceptance.setCustomer(customer); customer.setCurrentDisclaimerAcceptance(signedAcceptance);
+            signedAcceptance.getDraft().setCompletedCustomer(customer); signedAcceptance.getDraft().setStatus("COMPLETED");
+        }
         List<Kid> createdKids = new ArrayList<>();
         for (OnboardingKidRequest child : request.getKids()) {
             int age = Period.between(child.getDob(), LocalDate.now()).getYears();
@@ -95,4 +99,15 @@ public class CustomerOnboardingService {
     private KidDto kidDto(Kid k) { return KidDto.builder().id(k.getId()).kidName(k.getKidName()).dob(k.getDob()).ageInYears(k.getAgeInYears()).gender(k.getGender()).specialNotes(k.getSpecialNotes()).isActive(k.isActive()).eligible(k.isEligible()).createdAt(k.getCreatedAt()).build(); }
     private String normalizePhone(String value) { return value.replaceAll("[^0-9]", ""); }
     private boolean isPhysicalVisit(String purpose) { return "COMPLIMENTARY_TRIAL".equals(purpose) || "BUY_PACKAGE_NOW".equals(purpose); }
+    private DisclaimerAcceptance requiredAcceptance(CustomerOnboardingRequest request, Branch branch, String phone) {
+        if(!isPhysicalVisit(request.getVisitPurpose()) || !branch.isDisclaimerRequiredForPhysicalVisit()) return null;
+        Long id=request.getCustomer().getDisclaimerAcceptanceId();
+        if(id==null)throw new BusinessRuleException("DISCLAIMER_REQUIRED: Complete tablet signature or email consent before onboarding");
+        DisclaimerAcceptance a=disclaimerAcceptances.findById(id).orElseThrow(()->new BusinessRuleException("DISCLAIMER_REQUIRED: Signed acceptance was not found"));
+        boolean valid="VALID".equals(a.getStatus())&&a.getCustomer()==null&&a.getBranch().getId().equals(branch.getId())
+                &&"SIGNED".equals(a.getDraft().getStatus())&&phone.equals(a.getDraft().getPhoneNumber())
+                &&(!branch.isDisclaimerResignOnNewVersion()||branch.getActiveDisclaimerTemplate()!=null&&a.getTemplate().getId().equals(branch.getActiveDisclaimerTemplate().getId()));
+        if(!valid)throw new BusinessRuleException("DISCLAIMER_REQUIRED: The signed acceptance is not valid for this onboarding");
+        return a;
+    }
 }

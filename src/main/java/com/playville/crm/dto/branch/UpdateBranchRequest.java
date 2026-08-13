@@ -72,4 +72,7 @@ public class UpdateBranchRequest {
 
     @Size(max = 500, message = "Invoice footer must be 500 characters or less")
     private String invoiceFooter;
+
+    /** When false, this branch may onboard and check in customers without a signed disclaimer. */
+    private Boolean disclaimerRequiredForPhysicalVisit;
 }
