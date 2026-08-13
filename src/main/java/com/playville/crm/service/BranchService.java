@@ -3,8 +3,11 @@ package com.playville.crm.service;
 import com.playville.crm.dto.branch.BranchDto;
 import com.playville.crm.dto.branch.UpdateBranchRequest;
 import com.playville.crm.entity.Branch;
+import com.playville.crm.entity.DisclaimerTemplate;
+import com.playville.crm.exception.BusinessRuleException;
 import com.playville.crm.exception.ResourceNotFoundException;
 import com.playville.crm.repository.BranchRepository;
+import com.playville.crm.repository.DisclaimerTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +19,7 @@ import java.util.List;
 public class BranchService {
 
     private final BranchRepository branchRepository;
+    private final DisclaimerTemplateRepository disclaimerTemplates;
 
     @Transactional(readOnly = true)
     public List<BranchDto> getAllActiveBranches() {
@@ -64,11 +68,29 @@ public class BranchService {
         if (req.getTaxStateCode()      != null) branch.setTaxStateCode(blankToNull(req.getTaxStateCode()));
         if (req.getInvoiceTerms()      != null) branch.setInvoiceTerms(blankToNull(req.getInvoiceTerms()));
         if (req.getInvoiceFooter()     != null) branch.setInvoiceFooter(blankToNull(req.getInvoiceFooter()));
-        if (req.getDisclaimerRequiredForPhysicalVisit() != null) {
+        if (req.getDisclaimerRequiredForPhysicalVisit() != null)
             branch.setDisclaimerRequiredForPhysicalVisit(req.getDisclaimerRequiredForPhysicalVisit());
-            if (branch.isDisclaimerRequiredForPhysicalVisit() && branch.getActiveDisclaimerTemplate() == null)
-                throw new com.playville.crm.exception.BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Publish and assign an active disclaimer template before requiring signatures");
+        if (req.getTabletSignatureEnabled() != null) branch.setTabletSignatureEnabled(req.getTabletSignatureEnabled());
+        if (req.getEmailConfirmationEnabled() != null) branch.setEmailConfirmationEnabled(req.getEmailConfirmationEnabled());
+        if (req.getDisclaimerEmailLinkTtlHours() != null) branch.setDisclaimerEmailLinkTtlHours(req.getDisclaimerEmailLinkTtlHours());
+        if (req.getDisclaimerResignOnNewVersion() != null) branch.setDisclaimerResignOnNewVersion(req.getDisclaimerResignOnNewVersion());
+        if (req.getActiveDisclaimerTemplateId() != null) {
+            if (req.getActiveDisclaimerTemplateId() <= 0) {
+                branch.setActiveDisclaimerTemplate(null);
+            } else {
+                DisclaimerTemplate template = disclaimerTemplates.findById(req.getActiveDisclaimerTemplateId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Disclaimer template", req.getActiveDisclaimerTemplateId().intValue()));
+                if (template.getBranch() != null && !template.getBranch().getId().equals(branch.getId()))
+                    throw new BusinessRuleException("DISCLAIMER_TEMPLATE_NOT_PUBLISHED: Template does not belong to this branch");
+                if (!"PUBLISHED".equals(template.getStatus()))
+                    throw new BusinessRuleException("DISCLAIMER_TEMPLATE_NOT_PUBLISHED: Activate a published template");
+                branch.setActiveDisclaimerTemplate(template);
+            }
         }
+        if (branch.isDisclaimerRequiredForPhysicalVisit() && branch.getActiveDisclaimerTemplate() == null)
+            throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Publish and assign an active disclaimer template before requiring signatures");
+        if (branch.isDisclaimerRequiredForPhysicalVisit() && !branch.isTabletSignatureEnabled() && !branch.isEmailConfirmationEnabled())
+            throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Enable tablet signing or email confirmation");
         return toDto(branchRepository.save(branch));
     }
 

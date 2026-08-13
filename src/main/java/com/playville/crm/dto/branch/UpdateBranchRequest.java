@@ -75,4 +75,9 @@ public class UpdateBranchRequest {
 
     /** When false, this branch may onboard and check in customers without a signed disclaimer. */
     private Boolean disclaimerRequiredForPhysicalVisit;
+    private Boolean tabletSignatureEnabled;
+    private Boolean emailConfirmationEnabled;
+    @Min(1) @Max(72) private Integer disclaimerEmailLinkTtlHours;
+    private Boolean disclaimerResignOnNewVersion;
+    private Long activeDisclaimerTemplateId;
 }

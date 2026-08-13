@@ -24,7 +24,7 @@ import java.util.*;
     private final BranchEmailService branchEmailService;
     private final NotificationDeliveryService notificationDeliveryService;
     private final EmailTemplateService emailTemplateService;
-    @Value("${PLAYVILLE_PUBLIC_DISCLAIMER_URL:${app.disclaimer.public-base-url:http://localhost:8080/api/v1/public/disclaimer}}") private String publicBaseUrl;
+    @Value("${PLAYVILLE_PUBLIC_DISCLAIMER_URL:${app.disclaimer.public-base-url:http://localhost:4200/public/disclaimer}}") private String publicBaseUrl;
     @Transactional public DisclaimerView createTemplate(TemplateRequest r){
         Branch b=branch();
         DisclaimerTemplate t=templates.save(DisclaimerTemplate.builder().branch(b).templateCode(r.getTemplateCode()).version(r.getVersion()).title(r.getTitle()).contentHtml(r.getContentHtml()).build());
@@ -136,14 +136,15 @@ import java.util.*;
         String raw=Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
         LocalDateTime now=LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime expiry=now.plusHours(b.getDisclaimerEmailLinkTtlHours());
-        DisclaimerSigningRequest q=requests.save(DisclaimerSigningRequest.builder().branch(b).draft(d).template(b.getActiveDisclaimerTemplate()).channel("EMAIL_CONFIRMATION").idempotencyKey(key).tokenSha256(hash(raw)).sentAt(now).expiresAt(expiry).build());
+        DisclaimerSigningRequest q=requests.save(DisclaimerSigningRequest.builder().branch(b).draft(d).template(b.getActiveDisclaimerTemplate()).channel("EMAIL_CONFIRMATION").status("SENT").idempotencyKey(key).tokenSha256(hash(raw)).sentAt(now).expiresAt(expiry).build());
         d.setStatus("AWAITING_SIGNATURE");
         var emailTemplate=emailTemplateService.render(b.getId(),EmailTemplateService.DISCLAIMER_SIGNING,Map.of("GUARDIAN_NAME",d.getParentName(),"BRANCH_NAME",b.getBranchName(),"DISCLAIMER_URL",publicBaseUrl+"/"+raw,"EXPIRES_AT",expiry+" UTC"));
         notificationDeliveryService.enqueueEmail(b,null,null,"DISCLAIMER_SIGNING","DISCLAIMER_SIGNING",String.valueOf(q.getId()),d.getEmail(),key,emailTemplate.subject(),emailTemplate.bodyText(),null,null);
         return request(q);
     }
-    @Transactional(readOnly=true) public DisclaimerView publicView(String rawToken){
+    @Transactional public DisclaimerView publicView(String rawToken){
         DisclaimerSigningRequest q=publicRequest(rawToken); valid(q);
+        if("CREATED".equals(q.getStatus())||"SENT".equals(q.getStatus())) q.setStatus("OPENED");
         DisclaimerView v=template(q.getTemplate()); v.setId(q.getId()); v.setChannel(q.getChannel()); v.setExpiresAt(q.getExpiresAt()); v.setEmail(mask(q.getDraft().getEmail())); return v;
     }
     @Transactional public DisclaimerView emailAccept(String rawToken,EmailAcceptanceRequest r){
@@ -188,7 +189,8 @@ import java.util.*;
         return a!=null&&"VALID".equals(a.getStatus())&&(!b.isDisclaimerResignOnNewVersion()||b.getActiveDisclaimerTemplate()!=null&&a.getTemplate().getId().equals(b.getActiveDisclaimerTemplate().getId()));
     }
     private void valid(DisclaimerSigningRequest q){
-        if(!"CREATED".equals(q.getStatus())||q.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))throw new BusinessRuleException("DISCLAIMER_REQUEST_NOT_SIGNABLE");
+        if(q.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))throw new BusinessRuleException("DISCLAIMER_REQUEST_EXPIRED");
+        if(!List.of("CREATED","SENT","OPENED","VERIFIED").contains(q.getStatus()))throw new BusinessRuleException("DISCLAIMER_REQUEST_NOT_SIGNABLE");
     }
     private byte[] signature(String data){
         try{
