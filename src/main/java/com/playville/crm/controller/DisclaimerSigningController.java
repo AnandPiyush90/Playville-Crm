@@ -5,6 +5,7 @@ import com.playville.crm.service.DisclaimerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
 @RestController @RequiredArgsConstructor public class DisclaimerSigningController {
@@ -29,5 +30,8 @@ import java.util.*;
     }
     @GetMapping("/customers/{id}/disclaimer-acceptances") public ApiResponse<List<DisclaimerView>> history(@PathVariable Integer id){
         return ApiResponse.success(service.customerAcceptances(id));
+    }
+    @GetMapping("/disclaimer-acceptances") @PreAuthorize("hasAnyRole('admin','manager')") public ApiResponse<List<DisclaimerView>> branchHistory(){
+        return ApiResponse.success(service.branchAcceptances());
     }
 }

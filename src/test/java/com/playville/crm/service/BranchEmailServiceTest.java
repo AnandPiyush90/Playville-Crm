@@ -33,6 +33,7 @@ class BranchEmailServiceTest {
         ArgumentCaptor<EmailProviderConfig> saved=ArgumentCaptor.forClass(EmailProviderConfig.class); verify(configs).save(saved.capture());
         assertThat(saved.getValue().getHost()).isEqualTo("smtp.gmail.com"); assertThat(saved.getValue().getPort()).isEqualTo(587); assertThat(saved.getValue().getTlsMode()).isEqualTo("STARTTLS");
         assertThat(saved.getValue().getEncryptedPassword()).doesNotContain("abcdefghijklmnop"); assertThat(crypto.decrypt(saved.getValue().getEncryptedPassword())).isEqualTo("abcdefghijklmnop");
-        assertThat(response.isPasswordConfigured()).isTrue();
+        assertThat(saved.getValue().getLastTestStatus()).isNull();
+        assertThat(saved.getValue().getLastErrorCode()).isNull();
     }
 }

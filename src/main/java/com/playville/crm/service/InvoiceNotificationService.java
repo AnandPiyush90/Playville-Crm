@@ -12,6 +12,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.*;
 import org.springframework.web.client.RestClient;
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ public class InvoiceNotificationService {
     @Value("${app.notifications.whatsapp.graph-url:https://graph.facebook.com}") private String whatsappGraphUrl;
     @Value("${app.notifications.whatsapp.api-version:v22.0}") private String whatsappApiVersion;
 
+    @Transactional
     public ShareInvoiceResponse share(Integer invoiceId, ShareInvoiceRequest request, String username, String idempotencyKey) {
         Invoice invoice = invoiceRepository.findDetailById(invoiceId).orElseThrow(() -> new ResourceNotFoundException("Invoice", invoiceId));
         if (!invoice.getBranch().getId().equals(BranchContext.getBranchId())) throw new BranchAccessDeniedException();
@@ -43,8 +45,11 @@ public class InvoiceNotificationService {
         ShareInvoiceRequest.Channel channel = request.getChannel() == null ? ShareInvoiceRequest.Channel.EMAIL : request.getChannel();
         String destination = normalizeDestination(channel, request.getDestination(), invoice);
         if(channel==ShareInvoiceRequest.Channel.EMAIL){
-            byte[] pdf=invoiceService.document(invoiceId); String number=firstNonBlank(invoice.getInvoiceNumber(),"Invoice "+invoice.getId());
-            var template=emailTemplateService.render(branch.getId(),EmailTemplateService.INVOICE,Map.of("CUSTOMER_NAME",firstNonBlank(invoice.getCustomerNameSnapshot(),"Customer"),"INVOICE_NUMBER",number,"BRANCH_NAME",firstNonBlank(branch.getBranchName(),"PlayVille")));
+            String branchName=firstNonBlank(branch.getBranchName(),"PlayVille");
+            String customerName=firstNonBlank(invoice.getCustomerNameSnapshot(),"Customer");
+            String number=firstNonBlank(invoice.getInvoiceNumber(),"Invoice "+invoice.getId());
+            byte[] pdf=invoiceService.document(invoiceId);
+            var template=emailTemplateService.render(branch.getId(),EmailTemplateService.INVOICE,Map.of("CUSTOMER_NAME",customerName,"INVOICE_NUMBER",number,"BRANCH_NAME",branchName));
             NotificationDelivery delivery=notificationDeliveryService.enqueueEmail(branch,invoice.getCustomer(),staff,"INVOICE","INVOICE",String.valueOf(invoice.getId()),destination,idempotencyKey,template.subject(),
                     template.bodyText(),pdf,"playville-invoice-"+invoice.getId()+".pdf");
             return response(delivery);

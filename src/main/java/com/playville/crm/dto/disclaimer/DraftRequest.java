@@ -6,7 +6,7 @@ import java.util.*;
 public class DraftRequest {
      @NotBlank private String parentName;
      @NotBlank private String phoneNumber;
-     @Email private String email;
+     private String email;
      @NotBlank private String visitPurpose;
      @NotEmpty private List<Map<String,Object>> children; 
     }

@@ -136,7 +136,8 @@ public class CustomerService {
     }
 
     private Customer findCustomerOrThrow(Integer id) {
-        return customerRepository.findById(id)
+        return customerRepository.findByIdWithDetails(id)
+                .or(() -> customerRepository.findById(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", id));
     }
 
@@ -159,6 +160,12 @@ public class CustomerService {
     }
 
     private CustomerDto toDto(Customer c) {
+        List<KidDto> kids = c.getKids() == null
+                ? List.of()
+                : c.getKids().stream()
+                        .filter(Kid::isActive)
+                        .map(this::toKidDto)
+                        .toList();
         return CustomerDto.builder()
                 .id(c.getId())
                 .phoneNumber(c.getPhoneNumber())
@@ -174,9 +181,7 @@ public class CustomerService {
                 .totalVisits(c.getTotalVisits())
                 .notes(c.getNotes())
                 .isActive(c.isActive())
-                .kids(c.getKids().stream()
-                        .filter(Kid::isActive)
-                        .map(this::toKidDto).toList())
+                .kids(kids)
                 .createdAt(c.getCreatedAt())
                 .build();
     }

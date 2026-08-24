@@ -8,5 +8,5 @@ import java.time.LocalDateTime;
 public class EmailProviderConfigResponse {
     private Long id; private String providerType, host, username, tlsMode, fromEmail, fromName, replyToEmail;
     private int port; private boolean enabled, passwordConfigured;
-    private String lastTestStatus, lastErrorCode; private LocalDateTime lastTestedAt;
+    private String lastTestStatus, lastErrorCode, lastErrorMessage; private LocalDateTime lastTestedAt;
 }

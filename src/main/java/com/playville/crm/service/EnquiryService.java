@@ -10,6 +10,7 @@ import com.playville.crm.entity.Enquiry;
 import com.playville.crm.entity.Kid;
 import com.playville.crm.entity.enums.EnquiryStatus;
 import com.playville.crm.entity.enums.LeadSource;
+import com.playville.crm.exception.ApiConflictException;
 import com.playville.crm.exception.BranchAccessDeniedException;
 import com.playville.crm.exception.BusinessRuleException;
 import com.playville.crm.exception.ResourceNotFoundException;
@@ -18,12 +19,15 @@ import com.playville.crm.repository.CustomerRepository;
 import com.playville.crm.repository.EnquiryRepository;
 import com.playville.crm.repository.KidRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +39,13 @@ public class EnquiryService {
     private final KidRepository kidRepository;
 
     @Transactional
-    public EnquiryResponse create(EnquiryRequest request) {
+    public EnquiryResponse create(EnquiryRequest request, String idempotencyKey) {
+        String key = requireIdempotencyKey(idempotencyKey);
+        var existing = enquiryRepository.findByIdempotencyKey(key);
+        if (existing.isPresent()) {
+            return replayExisting(existing.get(), request);
+        }
+
         Branch branch = currentBranch();
         Enquiry enquiry = Enquiry.builder()
                 .branch(branch)
@@ -48,9 +58,16 @@ public class EnquiryService {
                 .childName(blankToNull(request.getChildName()))
                 .childDob(request.getChildDob())
                 .notes(blankToNull(request.getNotes()))
+                .idempotencyKey(key)
                 .build();
 
-        return toResponse(enquiryRepository.save(enquiry));
+        try {
+            return toResponse(enquiryRepository.saveAndFlush(enquiry));
+        } catch (DataIntegrityViolationException ex) {
+            return enquiryRepository.findByIdempotencyKey(key)
+                    .map(found -> replayExisting(found, request))
+                    .orElseThrow(() -> ex);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -150,6 +167,40 @@ public class EnquiryService {
             throw new BranchAccessDeniedException();
         }
         return enquiry;
+    }
+
+    private EnquiryResponse replayExisting(Enquiry enquiry, EnquiryRequest request) {
+        if (!enquiry.getBranch().getId().equals(BranchContext.getBranchId())) {
+            throw new BranchAccessDeniedException();
+        }
+        if (!sameCreatePayload(enquiry, request)) {
+            throw new ApiConflictException(
+                    "IDEMPOTENCY_KEY_REUSED",
+                    "Idempotency-Key was already used for a different enquiry");
+        }
+        return toResponse(enquiry);
+    }
+
+    private boolean sameCreatePayload(Enquiry enquiry, EnquiryRequest request) {
+        return Objects.equals(enquiry.getParentName(), request.getParentName().trim())
+                && Objects.equals(enquiry.getPhoneNumber(), normalizePhone(request.getPhoneNumber()))
+                && Objects.equals(enquiry.getEmail(), blankToNull(request.getEmail()))
+                && Objects.equals(enquiry.getLeadSource(), request.getLeadSource())
+                && Objects.equals(enquiry.getVisitScheduledAt(), request.getVisitScheduledAt())
+                && Objects.equals(enquiry.getChildName(), blankToNull(request.getChildName()))
+                && Objects.equals(enquiry.getChildDob(), request.getChildDob())
+                && Objects.equals(enquiry.getNotes(), blankToNull(request.getNotes()));
+    }
+
+    private String requireIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BusinessRuleException("IDEMPOTENCY_KEY_REQUIRED: Idempotency-Key header is required to create an enquiry");
+        }
+        String key = idempotencyKey.trim();
+        if (key.length() > 100) {
+            throw new BusinessRuleException("Idempotency-Key must be 100 characters or fewer");
+        }
+        return key;
     }
 
     private Branch currentBranch() {

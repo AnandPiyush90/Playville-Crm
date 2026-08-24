@@ -39,6 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Integer branchId   = claims.get("branchId",   Integer.class);
                 String  branchCode = claims.get("branchCode", String.class);
                 String  role       = claims.get("role",       String.class);
+                if (role != null) {
+                    role = role.replaceFirst("^ROLE_", "").toLowerCase(java.util.Locale.ROOT);
+                }
 
                 BranchContext.set(branchId, branchCode);
 

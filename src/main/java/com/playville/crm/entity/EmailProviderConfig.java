@@ -23,4 +23,5 @@ public class EmailProviderConfig {
     @Column(name = "last_test_status", length = 20) private String lastTestStatus;
     @Column(name = "last_tested_at") private LocalDateTime lastTestedAt;
     @Column(name = "last_error_code", length = 100) private String lastErrorCode;
+    @Column(name = "last_error_message", length = 500) private String lastErrorMessage;
 }

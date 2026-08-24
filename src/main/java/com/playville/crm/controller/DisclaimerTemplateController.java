@@ -13,6 +13,12 @@ import java.util.*;
     @GetMapping @PreAuthorize("hasAnyRole('admin','manager')") public ApiResponse<List<DisclaimerView>> list(){
         return ApiResponse.success(service.listTemplates());
     }
+    @GetMapping("/library/default") @PreAuthorize("isAuthenticated()") public ApiResponse<DisclaimerView> sample(){
+        return ApiResponse.success(service.sampleTemplate());
+    }
+    @PostMapping("/{id}/new-draft") @PreAuthorize("hasRole('admin')") public ResponseEntity<ApiResponse<DisclaimerView>> newDraft(@PathVariable Long id){
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(service.newDraftFrom(id)));
+    }
     @PostMapping @PreAuthorize("hasRole('admin')") public ResponseEntity<ApiResponse<DisclaimerView>> create(@Valid @RequestBody TemplateRequest r){
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(service.createTemplate(r)));
     }
@@ -20,6 +26,9 @@ import java.util.*;
         return ApiResponse.success(service.updateTemplate(id,r));
     }
     @PostMapping("/{id}/publish") @PreAuthorize("hasRole('admin')") public ApiResponse<DisclaimerView> publish(@PathVariable Long id){
-        return ApiResponse.success(service.publish(id));
+        return ApiResponse.success("Disclaimer published and activated", service.publish(id));
+    }
+    @PostMapping("/{id}/activate") @PreAuthorize("hasRole('admin')") public ApiResponse<DisclaimerView> activate(@PathVariable Long id){
+        return ApiResponse.success("Disclaimer activated", service.activate(id));
     }
 }

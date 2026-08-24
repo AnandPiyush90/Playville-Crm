@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +31,11 @@ public class EnquiryController {
     private final EnquiryService enquiryService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<EnquiryResponse>> create(@Valid @RequestBody EnquiryRequest request) {
+    public ResponseEntity<ApiResponse<EnquiryResponse>> create(
+            @Valid @RequestBody EnquiryRequest request,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Enquiry created", enquiryService.create(request)));
+                .body(ApiResponse.success("Enquiry created", enquiryService.create(request, idempotencyKey)));
     }
 
     @GetMapping

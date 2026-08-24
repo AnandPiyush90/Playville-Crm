@@ -14,7 +14,7 @@ import org.springframework.data.domain.Pageable;
 public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
     // Fetch one collection only. Fetching two List associations in one Hibernate query
     // triggers MultipleBagFetchException; payments load lazily inside the service transaction.
-    @Query("select distinct i from Invoice i left join fetch i.items where i.id = :id")
+    @Query("select distinct i from Invoice i left join fetch i.items left join fetch i.branch left join fetch i.customer where i.id = :id")
     Optional<Invoice> findDetailById(@Param("id") Integer id);
     Optional<Invoice> findByBirthdayBookingId(Integer birthdayBookingId);
     Optional<Invoice> findFirstByCheckinIdAndStatusOrderByIdDesc(Integer checkinId, InvoiceStatus status);

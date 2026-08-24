@@ -16,6 +16,15 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     Optional<Customer> findByPhoneNumber(String phoneNumber);
 
+    @Query("""
+        SELECT DISTINCT c FROM Customer c
+        LEFT JOIN FETCH c.homeBranch
+        LEFT JOIN FETCH c.currentPackage
+        LEFT JOIN FETCH c.kids
+        WHERE c.id = :id
+        """)
+    Optional<Customer> findByIdWithDetails(@Param("id") Integer id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Customer c where c.id = :id")
     Optional<Customer> findByIdForUpdate(@Param("id") Integer id);

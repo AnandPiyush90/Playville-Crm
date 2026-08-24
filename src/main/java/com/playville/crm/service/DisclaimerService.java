@@ -24,7 +24,17 @@ import java.util.*;
     private final BranchEmailService branchEmailService;
     private final NotificationDeliveryService notificationDeliveryService;
     private final EmailTemplateService emailTemplateService;
+    private final PlayvilleDisclaimerCopy playvilleDisclaimerCopy;
     @Value("${PLAYVILLE_PUBLIC_DISCLAIMER_URL:${app.disclaimer.public-base-url:http://localhost:4200/public/disclaimer}}") private String publicBaseUrl;
+    @Transactional(readOnly=true) public DisclaimerView sampleTemplate(){
+        return DisclaimerView.builder()
+                .templateCode(PlayvilleDisclaimerCopy.TEMPLATE_CODE)
+                .version(PlayvilleDisclaimerCopy.VERSION)
+                .title(PlayvilleDisclaimerCopy.TITLE)
+                .contentHtml(playvilleDisclaimerCopy.html())
+                .status("SAMPLE")
+                .build();
+    }
     @Transactional public DisclaimerView createTemplate(TemplateRequest r){
         Branch b=branch();
         DisclaimerTemplate t=templates.save(DisclaimerTemplate.builder().branch(b).templateCode(r.getTemplateCode()).version(r.getVersion()).title(r.getTitle()).contentHtml(r.getContentHtml()).build());
@@ -42,12 +52,36 @@ import java.util.*;
         t.setContentHtml(r.getContentHtml());
         return template(t);
     }
+    @Transactional public DisclaimerView newDraftFrom(Long id){
+        DisclaimerTemplate source=templateOwned(id);
+        DisclaimerTemplate draft=templates.save(DisclaimerTemplate.builder()
+                .branch(branch())
+                .templateCode(source.getTemplateCode())
+                .version("draft-"+System.currentTimeMillis())
+                .title(source.getTitle())
+                .contentHtml(source.getContentHtml())
+                .status("DRAFT")
+                .build());
+        return template(draft);
+    }
     @Transactional public DisclaimerView publish(Long id){
         DisclaimerTemplate t=templateOwned(id);
         if(!"DRAFT".equals(t.getStatus())) throw new BusinessRuleException("DISCLAIMER_TEMPLATE_IMMUTABLE: Template is not a draft");
         t.setContentSha256(hash(normalize(t.getContentHtml())));
         t.setStatus("PUBLISHED");
         t.setPublishedAt(LocalDateTime.now(ZoneOffset.UTC));
+        Branch b=branch();
+        b.setActiveDisclaimerTemplate(t);
+        if(!b.isTabletSignatureEnabled()&&!b.isEmailConfirmationEnabled()) b.setTabletSignatureEnabled(true);
+        branches.save(b);
+        return template(t);
+    }
+    @Transactional public DisclaimerView activate(Long id){
+        DisclaimerTemplate t=templateOwned(id);
+        if(!"PUBLISHED".equals(t.getStatus())) throw new BusinessRuleException("DISCLAIMER_TEMPLATE_NOT_PUBLISHED: Activate a published template");
+        Branch b=branch();
+        b.setActiveDisclaimerTemplate(t);
+        branches.save(b);
         return template(t);
     }
     @Transactional(readOnly=true) public DisclaimerSettingsResponse getSettings(){
@@ -99,7 +133,8 @@ import java.util.*;
         Optional<CustomerOnboardingDraft> replay=drafts.findByBranchIdAndIdempotencyKey(bid,key);
         if(replay.isPresent()) return draft(replay.get());
         try {
-            CustomerOnboardingDraft d=drafts.save(CustomerOnboardingDraft.builder().branch(branch()).parentName(r.getParentName()).phoneNumber(r.getPhoneNumber().replaceAll("[^0-9]","")).email(r.getEmail()).visitPurpose(r.getVisitPurpose()).childrenJson(json.writeValueAsString(r.getChildren())).idempotencyKey(key).expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(24)).build());
+            String email=r.getEmail()==null||r.getEmail().isBlank()?null:r.getEmail().trim();
+            CustomerOnboardingDraft d=drafts.save(CustomerOnboardingDraft.builder().branch(branch()).parentName(r.getParentName()).phoneNumber(r.getPhoneNumber().replaceAll("[^0-9]","")).email(email).visitPurpose(r.getVisitPurpose()).childrenJson(json.writeValueAsString(r.getChildren())).idempotencyKey(key).expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(24)).build());
             return draft(d);
         }
         catch(JsonProcessingException e){
@@ -114,7 +149,8 @@ import java.util.*;
         CustomerOnboardingDraft d=draftOwned(draftId);
         Branch b=branch();
         if(!b.isTabletSignatureEnabled())throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Tablet signing is disabled");
-        if(b.getActiveDisclaimerTemplate()==null)throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: No active disclaimer template");
+        if(b.getActiveDisclaimerTemplate()==null||!"PUBLISHED".equals(b.getActiveDisclaimerTemplate().getStatus()))
+            throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: No active disclaimer template");
         if(d.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))throw new BusinessRuleException("ONBOARDING_DRAFT_EXPIRED");
         Optional<DisclaimerSigningRequest> replay=requests.findByBranchIdAndIdempotencyKey(b.getId(),key);
         if(replay.isPresent())return request(replay.get());
@@ -128,7 +164,8 @@ import java.util.*;
         Branch b=branch();
         if(!b.isEmailConfirmationEnabled())throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: Email confirmation is disabled");
         if(d.getEmail()==null||d.getEmail().isBlank())throw new BusinessRuleException("DISCLAIMER_EMAIL_REQUIRED: A valid customer email is required");
-        if(b.getActiveDisclaimerTemplate()==null)throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: No active disclaimer template");
+        if(b.getActiveDisclaimerTemplate()==null||!"PUBLISHED".equals(b.getActiveDisclaimerTemplate().getStatus()))
+            throw new BusinessRuleException("DISCLAIMER_CONFIGURATION_REQUIRED: No active disclaimer template");
         if(d.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC)))throw new BusinessRuleException("ONBOARDING_DRAFT_EXPIRED");
         Optional<DisclaimerSigningRequest> replay=requests.findByBranchIdAndIdempotencyKey(b.getId(),key);
         if(replay.isPresent())return request(replay.get());
@@ -183,6 +220,9 @@ import java.util.*;
     @Transactional(readOnly=true) public List<DisclaimerView> customerAcceptances(Integer customerId){
         return acceptances.findByCustomerIdOrderByAcceptedAtDesc(customerId).stream().map(this::acceptance).toList();
     }
+    @Transactional(readOnly=true) public List<DisclaimerView> branchAcceptances(){
+        return acceptances.findByBranchIdOrderByAcceptedAtDesc(BranchContext.getBranchId()).stream().map(this::acceptance).toList();
+    }
     public boolean current(Customer c,Branch b){
         if(!b.isDisclaimerRequiredForPhysicalVisit())return true;
         DisclaimerAcceptance a=c.getCurrentDisclaimerAcceptance();
@@ -204,7 +244,8 @@ import java.util.*;
         }
     }
     private Branch branch(){
-        return branches.findById(BranchContext.getBranchId()).orElseThrow(()->new ResourceNotFoundException("Branch",BranchContext.getBranchId()));
+        Integer id=BranchContext.getBranchId();
+        return branches.findByIdWithDisclaimerTemplate(id).or(()->branches.findById(id)).orElseThrow(()->new ResourceNotFoundException("Branch",id));
     }
     private DisclaimerTemplate templateOwned(Long id){
         DisclaimerTemplate t=templates.findById(id).orElseThrow(()->new ResourceNotFoundException("Disclaimer template",id.intValue()));
@@ -217,7 +258,7 @@ import java.util.*;
         return d;
     }
     private DisclaimerSigningRequest requestOwned(Long id){
-        DisclaimerSigningRequest q=requests.findById(id).orElseThrow(()->new ResourceNotFoundException("Signing request",id.intValue()));
+        DisclaimerSigningRequest q=requests.findByIdWithTemplate(id).or(()->requests.findById(id)).orElseThrow(()->new ResourceNotFoundException("Signing request",id.intValue()));
         if(!q.getBranch().getId().equals(BranchContext.getBranchId()))throw new BranchAccessDeniedException();
         return q;
     }
@@ -239,7 +280,44 @@ import java.util.*;
         return DisclaimerView.builder().id(q.getId()).status(q.getStatus()).channel(q.getChannel()).email(mask(q.getDraft().getEmail())).sentAt(q.getSentAt()).expiresAt(q.getExpiresAt()).build();
     }
     private DisclaimerView acceptance(DisclaimerAcceptance a){
-        return DisclaimerView.builder().id(a.getId()).acceptanceId(a.getId()).status(a.getStatus()).signerName(a.getSignerName()).signerRelationship(a.getSignerRelationship()).acceptedAt(a.getAcceptedAt()).evidenceSha256(a.getEvidenceSha256()).version(a.getTemplateVersionSnapshot()).title(a.getTemplateTitleSnapshot()).build();
+        Customer customer=a.getCustomer();
+        CustomerOnboardingDraft draft=a.getDraft();
+        String image=a.getSignatureImage()==null?null:"data:image/png;base64,"+Base64.getEncoder().encodeToString(a.getSignatureImage());
+        return DisclaimerView.builder()
+                .id(a.getId())
+                .acceptanceId(a.getId())
+                .status(a.getStatus())
+                .signerName(a.getSignerName())
+                .signerRelationship(a.getSignerRelationship())
+                .acceptedAt(a.getAcceptedAt())
+                .evidenceSha256(a.getEvidenceSha256())
+                .version(a.getTemplateVersionSnapshot())
+                .title(a.getTemplateTitleSnapshot())
+                .acceptanceMethod(a.getAcceptanceMethod())
+                .channel(a.getAcceptanceMethod())
+                .email(a.getSignerEmail())
+                .phone(a.getSignerPhone())
+                .customerId(customer==null?null:customer.getId())
+                .customerName(customer!=null?customer.getParentName():(draft==null?null:draft.getParentName()))
+                .childrenSummary(childrenSummary(draft))
+                .hasSignature(image!=null)
+                .signatureDataUrl(image)
+                .build();
+    }
+    private String childrenSummary(CustomerOnboardingDraft draft){
+        if(draft==null||draft.getChildrenJson()==null||draft.getChildrenJson().isBlank())return null;
+        try{
+            var node=json.readTree(draft.getChildrenJson());
+            if(!node.isArray())return null;
+            List<String> names=new ArrayList<>();
+            node.forEach(child->{
+                String name=child.path("kidName").asText(child.path("name").asText(""));
+                if(!name.isBlank())names.add(name);
+            });
+            return names.isEmpty()?null:String.join(", ",names);
+        }catch(Exception ignored){
+            return null;
+        }
     }
     private String normalize(String s){
         return s.replace("\r\n","\n").replace('\r','\n');

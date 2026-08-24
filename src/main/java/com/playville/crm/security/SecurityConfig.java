@@ -51,15 +51,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers(PUBLIC_URLS).permitAll()
-                    // Branch disclaimer policy is readable by all authenticated staff
-                    .requestMatchers(HttpMethod.GET, "/branches/current/disclaimer-settings").authenticated()
-                    // Admin-only endpoints
+                    .requestMatchers("/error").permitAll()
+                    // Branch reads are needed by settings screens; writes stay admin-only.
+                    .requestMatchers(HttpMethod.GET, "/branches", "/branches/*", "/branches/current/**").authenticated()
                     .requestMatchers("/branches/**").hasRole("admin")
                     .requestMatchers(HttpMethod.DELETE, "/**").hasRole("admin")
-                    // Manager + admin
                     .requestMatchers("/reports/**").hasAnyRole("admin", "manager")
                     .requestMatchers("/expenses/**").hasAnyRole("admin", "manager")
-                    // All authenticated staff
                     .anyRequest().authenticated())
             .userDetailsService(staffDetailsService)
             .addFilterBefore(jwtAuthFilter,

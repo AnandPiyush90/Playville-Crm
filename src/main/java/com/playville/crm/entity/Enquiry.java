@@ -22,6 +22,7 @@ public class Enquiry {
     @Column(name = "child_name", length = 100) private String childName;
     @Column(name = "child_dob") private LocalDate childDob;
     @Column(columnDefinition = "TEXT") private String notes;
+    @Column(name = "idempotency_key", length = 100) private String idempotencyKey;
     @CreationTimestamp @Column(name = "created_at", updatable = false) private LocalDateTime createdAt;
     @UpdateTimestamp @Column(name = "updated_at") private LocalDateTime updatedAt;
 }

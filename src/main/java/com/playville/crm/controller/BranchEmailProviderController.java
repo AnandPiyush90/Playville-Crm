@@ -13,5 +13,9 @@ public class BranchEmailProviderController {
     private final BranchEmailService service;
     @GetMapping public ApiResponse<EmailProviderConfigResponse> get(){ return ApiResponse.success(service.getCurrent()); }
     @PutMapping public ApiResponse<EmailProviderConfigResponse> save(@Valid @RequestBody EmailProviderConfigRequest request){ return ApiResponse.success("Email provider saved",service.saveCurrent(request)); }
-    @PostMapping("/test") public ApiResponse<EmailProviderConfigResponse> test(@Valid @RequestBody EmailTestRequest request){ return ApiResponse.success("Test email sent",service.testCurrent(request)); }
+    @PostMapping("/test") public ApiResponse<EmailProviderConfigResponse> test(@Valid @RequestBody EmailTestRequest request){
+        EmailProviderConfigResponse result=service.testCurrent(request);
+        String message="SUCCESS".equals(result.getLastTestStatus())?"Test email sent":(result.getLastErrorMessage()!=null?result.getLastErrorMessage():"Test email failed");
+        return ApiResponse.success(message, result);
+    }
 }
