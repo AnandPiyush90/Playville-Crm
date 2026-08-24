@@ -62,7 +62,42 @@ The Compose file connects the application to the database service as `db`, not
 `127.0.0.1`. Flyway runs automatically when the application starts and applies
 pending migrations.
 
-## 3. Build and start
+## 3. Configure GitHub Actions deployment
+
+The workflow in `.github/workflows/ci-cd.yml` runs tests, builds the image in
+GitHub Actions, publishes it to GitHub Container Registry (GHCR), and then
+updates only the application container on the VPS. This avoids using the VPS's
+single CPU core for Maven and Docker image builds.
+
+Create a GitHub environment named `production` and add these environment secrets:
+
+- `VPS_HOST`: VPS hostname or IP address.
+- `VPS_USER`: non-root SSH user.
+- `VPS_SSH_KEY`: private Ed25519 key whose public key is in the user's VPS `~/.ssh/authorized_keys`.
+- `VPS_APP_DIR`: absolute repository directory, such as `/home/deploy/apps/playville-crm`.
+- `GHCR_USERNAME`: GitHub username or machine-account username.
+- `GHCR_READ_TOKEN`: GitHub token with read-only package access for the VPS.
+
+The GitHub Actions `GITHUB_TOKEN` publishes the package. The separate
+`GHCR_READ_TOKEN` is used only by the VPS to pull the private image. Never put
+either token in `.env` or commit it to the repository.
+
+Before the first automatic deployment, clone the repository on the VPS, create
+and secure `.env`, and verify that the deploy user can run Docker without sudo:
+
+```bash
+git clone https://github.com/AnandPiyush90/Playville-Crm.git /home/deploy/apps/playville-crm
+cd /home/deploy/apps/playville-crm
+cp .env.example .env
+chmod 600 .env
+docker compose up -d db
+```
+
+After the first successful workflow run, the app uses the immutable commit image
+tag. The `PLAYVILLE_IMAGE` value in the VPS `.env` can remain
+`playville-crm:local`; the workflow overrides it for the app deployment.
+
+## 4. Build and start manually
 
 ```bash
 # Prefer building on a local machine or CI because this VPS has one CPU core.
@@ -82,7 +117,7 @@ curl -i http://127.0.0.1:8080/api/v1/swagger-ui.html
 The endpoint may redirect to the Swagger UI. The login endpoint is at
 `/api/v1/auth/login`.
 
-## 4. Updates and rollback
+## 5. Updates and rollback
 
 Pull the new code and recreate the application:
 
@@ -112,7 +147,7 @@ docker compose up -d app
 If a migration has already changed the schema, restore the database backup and
 follow the migration's documented rollback procedure before reverting code.
 
-## 5. Reverse proxy and HTTPS
+## 6. Reverse proxy and HTTPS
 
 For production traffic, put Nginx or Caddy in front of the container and expose
 only ports `80` and `443`. Proxy requests to `127.0.0.1:8080`, issue a Let's
@@ -127,7 +162,7 @@ origins only. Before connecting a production browser frontend, add its exact
 HTTPS origin to `SecurityConfig.corsConfigurationSource()` and redeploy. Do not
 use a wildcard origin together with credentials.
 
-## 6. Operations checklist
+## 7. Operations checklist
 
 - Confirm `.env` permissions: `chmod 600 .env`.
 - Confirm `docker compose ps` reports both services as running.

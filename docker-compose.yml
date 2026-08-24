@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: playville-crm:local
+    image: ${PLAYVILLE_IMAGE:-playville-crm:local}
     restart: unless-stopped
     mem_limit: 600m
     cpus: 0.50
