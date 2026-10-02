@@ -35,11 +35,14 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
         SELECT c FROM Customer c
         WHERE c.homeBranch.id = :branchId
           AND c.isActive = true
-          AND LOWER(c.parentName) LIKE LOWER(CONCAT('%', :name, '%'))
+          AND (
+              LOWER(c.parentName) LIKE LOWER(CONCAT('%', :search, '%'))
+              OR c.phoneNumber LIKE CONCAT('%', :search, '%')
+          )
         """)
-    Page<Customer> searchByNameInBranch(@Param("branchId") Integer branchId,
-                                        @Param("name")     String  name,
-                                        Pageable pageable);
+    Page<Customer> searchByNameOrPhoneInBranch(@Param("branchId") Integer branchId,
+                                                @Param("search")   String  search,
+                                                Pageable pageable);
 
     @Query("""
         SELECT c FROM Customer c

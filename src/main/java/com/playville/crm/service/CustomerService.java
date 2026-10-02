@@ -30,7 +30,7 @@ public class CustomerService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         if (search != null && !search.isBlank()) {
             return customerRepository
-                    .searchByNameInBranch(branchId, search, pageable)
+                    .searchByNameOrPhoneInBranch(branchId, search, pageable)
                     .map(this::toSummaryDto);
         }
         return customerRepository

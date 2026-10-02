@@ -23,7 +23,7 @@ class DisclaimerServiceTest {
             templates, mock(CustomerOnboardingDraftRepository.class),
             mock(DisclaimerSigningRequestRepository.class), mock(DisclaimerAcceptanceRepository.class),
             branches, new ObjectMapper(), mock(BranchEmailService.class), mock(NotificationDeliveryService.class),
-            mock(EmailTemplateService.class), mock(PlayvilleDisclaimerCopy.class));
+            mock(EmailTemplateService.class), mock(PlayvilleDisclaimerCopy.class), mock(DisclaimerStatusStream.class));
 
     @AfterEach
     void clearContext() {

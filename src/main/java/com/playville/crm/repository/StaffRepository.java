@@ -9,6 +9,7 @@ import java.util.Optional;
 
 public interface StaffRepository extends JpaRepository<Staff, Integer> {
     Optional<Staff> findByUsernameAndIsActiveTrue(String username);
+    Optional<Staff> findByEmailIgnoreCase(String email);
     List<Staff>     findByBranchIdAndIsActiveTrue(Integer branchId);
     List<Staff>     findByBranchIdAndRoleAndIsActiveTrue(Integer branchId, StaffRole role);
     boolean         existsByUsername(String username);

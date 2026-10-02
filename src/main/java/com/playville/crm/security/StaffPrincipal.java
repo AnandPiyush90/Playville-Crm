@@ -19,15 +19,17 @@ public class StaffPrincipal implements UserDetails {
     private final String  password;
     private final String  role;
     private final boolean active;
+    private final Integer tokenVersion;
 
     public StaffPrincipal(Staff staff) {
-        this.id         = staff.getId();
-        this.branchId   = staff.getBranch().getId();
-        this.branchCode = staff.getBranch().getBranchCode();
-        this.username   = staff.getUsername();
-        this.password   = staff.getPasswordHash();
-        this.role       = staff.getRole().name();
-        this.active     = staff.isActive();
+        this.id           = staff.getId();
+        this.branchId     = staff.getBranch().getId();
+        this.branchCode   = staff.getBranch().getBranchCode();
+        this.username     = staff.getUsername();
+        this.password     = staff.getPasswordHash();
+        this.role         = staff.getRole().name();
+        this.active       = staff.isActive();
+        this.tokenVersion = staff.getTokenVersion();
     }
 
     @Override

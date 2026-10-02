@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+import com.playville.crm.entity.enums.SessionDeductionSourceConverter;
+
 @Entity
 @Table(name = "pv_session_deductions")
 @Getter @Setter
@@ -40,7 +42,7 @@ public class SessionDeduction {
     @Column(name = "deducted_at")
     private LocalDateTime deductedAt;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = SessionDeductionSourceConverter.class)
     @Column(name = "deduction_source", length = 20)
     @Builder.Default
     private DeductionSource deductionSource = DeductionSource.Checkout;

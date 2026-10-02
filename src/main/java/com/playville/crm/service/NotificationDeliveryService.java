@@ -21,6 +21,7 @@ public class NotificationDeliveryService {
         Optional<NotificationDelivery> existing=deliveries.findByBranchIdAndIdempotencyKey(branch.getId(),key); if(existing.isPresent())return existing.get();
         EmailProviderConfig provider=providerConfigs.findByBranchId(branch.getId()).orElseThrow(()->new BusinessRuleException("EMAIL_CONFIGURATION_REQUIRED: Configure branch email provider settings"));
         if(!provider.isEnabled())throw new BusinessRuleException("EMAIL_SHARING_DISABLED: Enable the branch email provider");
+        if(provider.getEncryptedPassword()==null||provider.getEncryptedPassword().isBlank())throw new BusinessRuleException("EMAIL_PASSWORD_REQUIRED: Configure and test the branch email provider before sending");
         if(attachment!=null&&attachment.length>10_000_000)throw new BusinessRuleException("EMAIL_ATTACHMENT_TOO_LARGE: Maximum attachment size is 10 MB");
         LocalDateTime now=LocalDateTime.now();
         NotificationDelivery delivery=deliveries.saveAndFlush(NotificationDelivery.builder().branch(branch).customer(customer).triggeredByStaff(staff).channel("EMAIL").purpose(purpose).referenceType(referenceType).referenceId(referenceId).providerType(provider.getProviderType()).destination(destination).status("PENDING").idempotencyKey(key).attemptCount(0).nextRetryAt(now).build());

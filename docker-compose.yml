@@ -2,8 +2,8 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
-    mem_limit: 500m
-    cpus: 0.50
+    mem_limit: 4g
+    cpus: 1.50
     env_file:
       - .env
     environment:
@@ -11,6 +11,8 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -25,8 +27,8 @@ services:
       dockerfile: Dockerfile
     image: ${PLAYVILLE_IMAGE:-playville-crm:local}
     restart: unless-stopped
-    mem_limit: 600m
-    cpus: 0.50
+    mem_limit: 3g
+    cpus: 2.00
     env_file:
       - .env
     environment:
@@ -34,12 +36,29 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE}?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx384m"
+      PLAYVILLE_SMTP_HOST: ${PLAYVILLE_DOCKER_SMTP_HOST:-mailpit}
+      PLAYVILLE_SMTP_PORT: ${PLAYVILLE_DOCKER_SMTP_PORT:-1025}
+      PLAYVILLE_SMTP_USERNAME: ${PLAYVILLE_SMTP_USERNAME:-}
+      PLAYVILLE_SMTP_PASSWORD: ${PLAYVILLE_SMTP_PASSWORD:-}
+      PLAYVILLE_SMTP_AUTH: ${PLAYVILLE_SMTP_AUTH:-false}
+      PLAYVILLE_SMTP_STARTTLS: ${PLAYVILLE_SMTP_STARTTLS:-false}
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx2g"
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.25
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   mysql_data:

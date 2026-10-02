@@ -2,6 +2,7 @@ package com.playville.crm.service;
 
 import com.playville.crm.entity.*;
 import com.playville.crm.repository.EmailOutboxRepository;
+import com.playville.crm.repository.DisclaimerSigningRequestRepository;
 import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,7 +13,7 @@ class EmailOutboxDispatcherTest {
     private final EmailOutboxRepository outbox=mock(EmailOutboxRepository.class);
     private final BranchEmailService email=mock(BranchEmailService.class);
     private final EmailCredentialCrypto crypto=new EmailCredentialCrypto(Base64.getEncoder().encodeToString(new byte[32]));
-    private final EmailOutboxDispatcher dispatcher=new EmailOutboxDispatcher(outbox,email,crypto);
+    private final EmailOutboxDispatcher dispatcher=new EmailOutboxDispatcher(outbox,email,crypto,mock(DisclaimerSigningRequestRepository.class));
 
     @Test void dispatchMarksDeliverySent() {
         NotificationDelivery delivery=NotificationDelivery.builder().id(8).branch(Branch.builder().id(7).build()).destination("guardian@example.com").status("PENDING").build();
@@ -44,13 +45,13 @@ class EmailOutboxDispatcherTest {
         assertThat(delivery.getStatus()).isEqualTo("FAILED"); assertThat(delivery.getNextRetryAt()).isNull(); assertThat(message.getStatus()).isEqualTo("FAILED");
     }
 
-    @Test void thirdTransientFailureSchedulesThirtyMinuteRetry() {
+    @Test void thirdTransientFailureIsMarkedFailed() {
         NotificationDelivery delivery=NotificationDelivery.builder().id(8).branch(Branch.builder().id(7).build()).destination("guardian@example.com").status("PENDING").attemptCount(2).build();
         EmailOutbox message=EmailOutbox.builder().delivery(delivery).encryptedSubject(crypto.encrypt("Subject")).encryptedBody(crypto.encrypt("Body")).nextAttemptAt(java.time.LocalDateTime.now()).build();
         when(outbox.findDue(any(),any())).thenReturn(List.of(message)); when(email.send(any(),any(),any(),any(),any())).thenThrow(new IllegalStateException("timeout"));
 
         dispatcher.processDue();
 
-        assertThat(delivery.getStatus()).isEqualTo("PENDING"); assertThat(delivery.getAttemptCount()).isEqualTo(3); assertThat(delivery.getNextRetryAt()).isAfter(java.time.LocalDateTime.now().plusMinutes(29));
+        assertThat(delivery.getStatus()).isEqualTo("FAILED"); assertThat(delivery.getAttemptCount()).isEqualTo(3); assertThat(delivery.getNextRetryAt()).isNull(); assertThat(message.getStatus()).isEqualTo("FAILED");
     }
 }
